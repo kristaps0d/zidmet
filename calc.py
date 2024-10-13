@@ -2,7 +2,7 @@
 import numpy as np, time
 from datetime import datetime
 
-# 01-10-2024
+# 13-10-2024
 # Variants F9
 A = np.array([
     [2.9730, 0.1344, -0.1391, 0.3690, 0.1169, 0.3030],
@@ -22,72 +22,43 @@ B = np.array([
     [1.4311]
 ])
 
-# 6x6 *  6x1  = 6x1
-# A   *  X    = B   
+# https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method
+# Formulas no ↑
 
-# Uzdevums:
-# Jaiegūst X
+# A matriksu jadekompoze uz A = L + U, 
+# kur L zemākā tristūra
+# un U augšējā trijstūra bez diognāles
 
-def Calculate(_A, _X):
-    # A * X = _T
-    _T = np.matmul(_A, _X)
-    return _T
+U = np.triu(A, k=1) # izlaista diognāle
+L = np.tril(A, k=0) # ir diognāle
 
-def Error(_T, _B):
-    _E = (_T / _B)
-    return _E
+# KKadu sakotnēju X matriksu- rand cipari
+X = np.random.rand(6, 1)
 
-def Adj_X(_X, _E):
-    _X = _X / _E
-    return _X
+def X_Next(_inv_L, _U, _B, _X):
+    UX = np.matmul(_U, _X)
+    BmUX = _B - UX
+    
+    return np.matmul(_inv_L, BmUX)
 
-def find_minimum(goal_error:float=0.0001, print_per_iterations:int=99999, log_loc_min:bool=True):
-    X = np.random.rand(6, 1)
+def calc_T(_inv_L, _U):
+    return (-1) * np.matmul(_inv_L, _U)
 
-    last = 0    # last dE value
-    iter = 0
-    while True: 
+def calc_c(_inv_L, _B):
+    return (-1) * np.matmul(_inv_L, _B)
 
-        iter += 1
-
-        # A * X = T
-        T = Calculate(A, X)
-
-        # Check overall system error
-        # E(t) = |∑(T_i(t) / B_i) - B_i.matrix.height|
-        E = Error(T, B)
-        S_E = np.abs(np.sum(E) - np.shape(E)[0])
-        
-        # If E'(t) ~ 0: then assume local minimum and restart with new starting array values
-        if S_E == last:
-            
-            if log_loc_min:
-                print("[Loc. Min. hit]: Restarting loop [Error:", str(S_E) + "]: Hit at iteration:", iter)
-
-            return False # flag to restart loop
-
-        # Historical error context for comparing error rate of change (E'(t))
-        last = S_E
-
-        # Debugging
-        if iter % print_per_iterations == 0:
-            print("Iteration: ", iter, " error:", S_E)
-        
-        if S_E <= goal_error:
-
-            print("\n")
-            print("[Success]: Final error:", S_E, "\n")
-            print(X, "\n")
-
-            return True
-
-        # X(t+1) = X(t) / E(t)
-        # divide errors respectivly to their corresponding weights
-        X = Adj_X(X, E)
+def calc_error(_X, _X_Next):
+    error_m = np.abs(_X_Next - _X)
+    return np.max(error_m)
 
 while True:
+    inv_L = np.linalg.inv(L)
+    N_X = X_Next(inv_L, U, B, X)
+    
+    max_abs_e = calc_error(X, N_X)
+    X = N_X
 
-    ret = find_minimum()
-    if ret == True:
-        print('[info]: Exiting!')
+    if max_abs_e <= 0.00001: # target error
+        print("[info]: Success! Error:", max_abs_e)
+        print(X)
         break
